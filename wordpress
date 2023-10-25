@@ -167,3 +167,5 @@ chown -R www-data:www-data /var/www/html/wordpress
 chmod -R 775 /var/www/html/wordpress
 
 echo "" >>/etc/apache2/sites-available/wordpress.conf
+
+# There is still some code that haven't writed up
