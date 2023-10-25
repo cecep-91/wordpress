@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# Install Wordpress on Ubuntu server by Ikuba91
+
+# Functions
+ressultlog=/var/log/wordpress.log
+errorlog=/var/log/wordpress_error.log
+
+check_error() {
+if [ $? -ne 0 ]
+then
+	echo "An error occurred, check the $errorlog file"
+	sleep 1
+else
+	r=0
+fi
+}
+
+# Let user know program is starting
+echo "Starting the program ..."
+sleep 1
+
+# Check the internet connection
+echo "Checking internet connection ..."
+ping -c 3 8.8.8.8 &>> /dev/null
+if [ $? -ne 0 ]
+then
+	echo "No internet connection, try again later."
+	exit 8888
+else
+	echo "OK"
+fi
+sleep 0.5
+echo ""
+
+# Gaining mySQL root password
+access_sql=0
+while [ $access_sql != 1 ]
+do
+	echo "Enter your Maria-DB's root password: (Leave it blank if you haven't configured it before)"
+	read root_pass
+	sleep 0.5
+	
+	mysql --user="root" --password="$root_pass" --execute="SHOW DATABASES;" &>> /dev/null
+	if [ $? -ne 0 ]
+	then
+		echo "Can't access Maria-DB server, check again your password."
+		sleep 0.5
+		exit 911
+	else
+		echo "Maria-DB successfully accessed."
+		sleep 0.5
+		access_sql=1
+	fi
+done
+
+# Make database for Maria-DB user
+dupl_db=1
+while [ ${#db_name} -eq 0 ] && [ ${dupl_db}=1 ]
+do
+	echo "Database name for Wordpress:"
+	read db_name
+
+	# Check duplicate database name
+	if [ ${#db_name} -ne 0 ]
+	then
+	mysql --user="root" --password="$root_pass" --execute="USE $db_name;" &>> /dev/null
+	else
+	mysql --user="root" --password="${root_pass}notapassword" --execute="USE ${db_name}notadatabase;" &>> /dev/null
+	fi
+
+	if [ $? -ne 1 ]
+	then
+		echo "There is already database named '$db_name', enter something else."
+		db_name=""
+	else
+		dupl_db=0
+	fi
+done
+
+# Make username for Maria-DB user
+dupl_usr=1
+while [ ${#username_db} -eq 0 ] && [ ${dupl_usr}=1 ]
+do
+	echo "Username Maria-DB for Wordpress:"
+	read username_db
+
+	# Check duplicate username
+	result=$(mysql --user="root" --password="$root_pass" --execute="SELECT User FROM mysql.user WHERE User='$username_db';" 2>&1)
+
+	if [[ "$result" == *"User"* ]]
+	then
+		echo "There is already username named '$username_db', enter something else."
+		username_db=""
+	else
+		dupl_usr=0
+	fi
+done
+
+# Make password for Maria-DB user
+while [ $pass1 != $pass2 ]
+do
+	echo "Maria-DB's password for user '$username_db':"
+	read -s pass1
+
+	echo "Confirm your password:"
+	read -s pass2
+
+	if [ $pass1 != $pass2 ]
+	then
+		echo "Your password is not matched. Try again ..."
+	fi
+	echo ""
+	sleep 0.5
+done
+
+# Update the Ubuntu server
+r=1
+while [ $r -ne 0 ]
+do
+	echo "Updating machine ..."
+
+	sudo apt update 1>$ressultlog 2>>$errorlog
+	check_error
+done
+
+# Getting the required packages
+r=1
+while [ $r -ne 0 ]
+do
+	echo "Getting the requiered packages ..."
+
+	apt install apache2 mariadb-server php php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap libapache2-mod-php php-mysql wget unzip -y 1>$ressultlog 2>>$errorlog
+	check_error
+done
+
+echo "Configuring LAMP ..."
+
+# Setting Apace2
+systemctl start apache2 &>> /dev/null
+systemctl enable apache2 &>> /dev/null
+
+# Configuring Maria-DB
+mysql --user="root" --password="$root_pass" --execute="CREATE DATABASE $db_name;" &>> /dev/null
+mysql --user="root" --password="$root_pass" --execute="CREATE USER '$username_db'@'localhost' IDENTIFIED BY '$pass1';" &>> /dev/null
+mysql --user="root" --password="$root_pass" --execute="GRANT ALL PRIVILEGES ON $db_name.* TO '$username_db'@'localhost';" &>> /dev/null
+mysql --user="root" --password="$root_pass" --execute="FLUSH PRIVILEGES;" &>> /dev/null
+
+echo "Downloading Wordpress ..."
+if [ -f /var/www/html/latest.tar.gz ]
+then
+	echo "Removing old file ..."
+	rm /var/www/html/latest.tar.gz
+fi
+
+wget -P /var/www/html http://wordpress.org/latest.tar.gz
+
+echo "Configuring Wordpress ..."
+tar -xvzf /var/www/html/latest.tar.gz -C /var/www/html/
+mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+
+echo "define( 'DB_NAME', '$db_name' );" >> /var/www/html/wordpress/wp-config.php
+echo "define( 'DB_USER', '$username_db' );" >> /var/www/html/wordpress/wp-config.php
+echo "define( 'DB_PASSWORD', '$pass1' );" >> /var/www/html/wordpress/wp-config.php
