@@ -40,7 +40,7 @@ do
 	echo "Enter your Maria-DB's root password: (Leave it blank if you haven't configured it before)"
 	read root_pass
 	sleep 0.5
-	
+
 	mysql --user="root" --password="$root_pass" --execute="SHOW DATABASES;" &>> /dev/null
 	if [ $? -ne 0 ]
 	then
@@ -162,3 +162,8 @@ mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-confi
 echo "define( 'DB_NAME', '$db_name' );" >> /var/www/html/wordpress/wp-config.php
 echo "define( 'DB_USER', '$username_db' );" >> /var/www/html/wordpress/wp-config.php
 echo "define( 'DB_PASSWORD', '$pass1' );" >> /var/www/html/wordpress/wp-config.php
+
+chown -R www-data:www-data /var/www/html/wordpress
+chmod -R 775 /var/www/html/wordpress
+
+echo "" >>/etc/apache2/sites-available/wordpress.conf
