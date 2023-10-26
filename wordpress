@@ -153,39 +153,71 @@ mysql --user="root" --password="$root_pass" --execute="GRANT ALL PRIVILEGES ON $
 mysql --user="root" --password="$root_pass" --execute="FLUSH PRIVILEGES;" &>> /dev/null
 
 # Downloading Wordpress
+wp_dir=/var/www/html/wordpress/
+
 echo "Downloading Wordpress ..."
-if [ -f /var/www/html/latest.tar.gz ]
+if [ -f ${wp_dir}../latest.tar.gz ]
 then
 	echo "Removing old file ..."
-	rm /var/www/html/latest.tar.gz
+	rm ${wp_dir}../latest.tar.gz
 fi
 
-wget -q --show-progress -P /var/www/html http://wordpress.org/latest.tar.gz
+if [ -d /var/www/html/wordpress/ ]
+then
+	echo "Detected existing wordpress file, changing directory ..."
+	dupl_wp=1
+	alt_dir=1
+	while [ dupl_wp -eq 1 ]
+	do
+		wp_dir=${wp_dir}../wordpress_${alt_dir}/
+		if [ -d wp_dir ]
+		then
+			alt_dir=$(($alt_dir + 1))
+		else
+			dupl_wp=0
+		fi
+	done
+fi
+
+wget -q --show-progress -P ${wp_dir}../ http://wordpress.org/latest.tar.gz
 
 # Getting ready Wordpress
 echo "Configuring Wordpress ..."
-tar -xvzf /var/www/html/latest.tar.gz -C /var/www/html/ >> /dev/null
-mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+tar -xvzf ${wp_dir}../latest.tar.gz -C ${wp_dir}../ >> /dev/null
+mv ${wp_dir}wp-config-sample.php ${wp_dir}wp-config.php
 
 # Configuring Wordpress
-dbline=$(grep "DB_NAME" /var/www/html/wordpress/wp-config.php | cut -d: -f1)
-usline=$(grep "DB_USER" /var/www/html/wordpress/wp-config.php | cut -d: -f1)
-pwline=$(grep "DB_PASSWORD" /var/www/html/wordpress/wp-config.php | cut -d: -f1)
+dbline=$(grep "DB_NAME" ${wp_dir}wp-config.php | cut -d: -f1)
+usline=$(grep "DB_USER" ${wp_dir}wp-config.php | cut -d: -f1)
+pwline=$(grep "DB_PASSWORD" ${wp_dir}wp-config.php | cut -d: -f1)
  
-sed -i "${dbline}c\define( 'DB_NAME', '$db_name' );" /var/www/html/wordpress/wp-config.php
-sed -i "${usline}c\define( 'DB_USER', '$username_db' );" /var/www/html/wordpress/wp-config.php
-sed -i "${pwline}c\define( 'DB_PASSWORD', '$pass1' );" /var/www/html/wordpress/wp-config.php
+sed -i "${dbline}c\define( 'DB_NAME', '$db_name' );" ${wp_dir}wp-config.php
+sed -i "${usline}c\define( 'DB_USER', '$username_db' );" ${wp_dir}wp-config.php
+sed -i "${pwline}c\define( 'DB_PASSWORD', '$pass1' );" ${wp_dir}wp-config.php
 
-chown -R www-data:www-data /var/www/html/wordpress
-chmod -R 775 /var/www/html/wordpress
+chown -R www-data:www-data ${wp_dir}
+chmod -R 775 ${wp_dir}
 
 # Add Virtual Host file for Wordpress
+wp_vh=/etc/apache2/sites-available/wordpress.conf
+dupl_vh=1
+alt_vh=1
+while [ dupl_vh -eq 1 ]
+do
+	wp_vh=${wp_vh}../wordpress_${alt_vh}.conf
+	if [ -f $wp_vh]
+	then
+		alt_vh=$(($alt_vh + 1))
+	else
+		dupl_vh=0
+	fi
+done
 echo "# Virtual Host for Wordpress
 <VirtualHost *:80>
 	ServerAdmin admin@localhost
-	DocumentRoot /var/www/html/wordpress
+	DocumentRoot ${wp_dir}
 
-	<Directory /var/www/html/wordpress/>
+	<Directory ${wp_dir}>
 		Options FollowSymLinks
 		AllowOverride All
 		Require all granted
@@ -194,7 +226,7 @@ echo "# Virtual Host for Wordpress
 	ErrorLog ${APACHE_LOG_DIR}/wordpress_error.log
 	CustomLog ${APACHE_LOG_DIR}/wordpress.log combined
 </VirtualHost>
-" >>/etc/apache2/sites-available/wordpress.conf
+" >>${wp_vh}
 
 # Finishing up setup
 
