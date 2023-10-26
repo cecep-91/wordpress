@@ -1,6 +1,5 @@
 #!/bin/bash
-
-# Install Wordpress on Ubuntu server by Ikuba91
+# Install Wordpress on Ubuntu server by Cecep-91
 
 # Functions
 ressultlog=/var/log/wordpress.log
@@ -10,15 +9,23 @@ check_error() {
 if [ $? -ne 0 ]
 then
 	echo "An error occurred, check the $errorlog file"
-	sleep 1
+	sleep 0.5
 else
 	r=0
 fi
 }
 
+# Does user run it with root privilege
+ls &> /dev/null
+if [ $? -ne 0 ]
+then
+	echo "You do not have root privileges, run it with sudo or root account"
+	exit 999
+fi
+
 # Let user know program is starting
 echo "Starting the program ..."
-sleep 1
+sleep 0.5
 
 # Check the internet connection
 echo "Checking internet connection ..."
@@ -26,19 +33,23 @@ ping -c 3 8.8.8.8 &>> /dev/null
 if [ $? -ne 0 ]
 then
 	echo "No internet connection, try again later."
-	exit 8888
+	exit 1
 else
 	echo "OK"
 fi
-sleep 0.5
-echo ""
 
 # Gaining mySQL root password
+r=1
+while [ $r -ne 0 ]
+do
+	apt install mariadb-server -y 1>$ressultlog 2>>$errorlog
+	check_error
+done
+
 access_sql=0
 while [ $access_sql != 1 ]
-do
-	echo "Enter your Maria-DB's root password: (Leave it blank if you haven't configured it before)"
-	read root_pass
+do 
+	read -p "Enter your Maria-DB's root password (Leave it blank if you haven't configured it before):" root_pass
 	sleep 0.5
 
 	mysql --user="root" --password="$root_pass" --execute="SHOW DATABASES;" &>> /dev/null
@@ -58,8 +69,7 @@ done
 dupl_db=1
 while [ ${#db_name} -eq 0 ] && [ ${dupl_db}=1 ]
 do
-	echo "Database name for Wordpress:"
-	read db_name
+	read -p "Database name for Wordpress:" db_name
 
 	# Check duplicate database name
 	if [ ${#db_name} -ne 0 ]
@@ -82,8 +92,7 @@ done
 dupl_usr=1
 while [ ${#username_db} -eq 0 ] && [ ${dupl_usr}=1 ]
 do
-	echo "Username Maria-DB for Wordpress:"
-	read username_db
+	read -p "Username Maria-DB for Wordpress:" username_db
 
 	# Check duplicate username
 	result=$(mysql --user="root" --password="$root_pass" --execute="SELECT User FROM mysql.user WHERE User='$username_db';" 2>&1)
@@ -99,12 +108,10 @@ done
 
 # Make password for Maria-DB user
 while [ $pass1 != $pass2 ]
-do
-	echo "Maria-DB's password for user '$username_db':"
-	read -s pass1
-
-	echo "Confirm your password:"
-	read -s pass2
+do 
+	read -p "Maria-DB's password for user '$username_db':" -s pass1
+	echo ""
+	read -p "Confirm your password:" -s pass2
 
 	if [ $pass1 != $pass2 ]
 	then
@@ -120,7 +127,7 @@ while [ $r -ne 0 ]
 do
 	echo "Updating machine ..."
 
-	sudo apt update 1>$ressultlog 2>>$errorlog
+	apt update 1>$ressultlog 2>>$errorlog
 	check_error
 done
 
@@ -146,6 +153,7 @@ mysql --user="root" --password="$root_pass" --execute="CREATE USER '$username_db
 mysql --user="root" --password="$root_pass" --execute="GRANT ALL PRIVILEGES ON $db_name.* TO '$username_db'@'localhost';" &>> /dev/null
 mysql --user="root" --password="$root_pass" --execute="FLUSH PRIVILEGES;" &>> /dev/null
 
+# Downloading Wordpress
 echo "Downloading Wordpress ..."
 if [ -f /var/www/html/latest.tar.gz ]
 then
@@ -155,6 +163,7 @@ fi
 
 wget -P /var/www/html http://wordpress.org/latest.tar.gz
 
+# Configuring Wordpress
 echo "Configuring Wordpress ..."
 tar -xvzf /var/www/html/latest.tar.gz -C /var/www/html/
 mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
@@ -166,6 +175,32 @@ echo "define( 'DB_PASSWORD', '$pass1' );" >> /var/www/html/wordpress/wp-config.p
 chown -R www-data:www-data /var/www/html/wordpress
 chmod -R 775 /var/www/html/wordpress
 
-echo "" >>/etc/apache2/sites-available/wordpress.conf
+# Add Virtual Host file for Wordpress
+echo "# Virtual Host for Wordpress
+<VirtualHost *:80>
+	ServerAdmin admin@localhost
+	DocumentRoot /var/www/html/wordpress
 
-# There is still some code that haven't writed up
+	<Directory /var/www/html/wordpress/>
+		Options FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
+
+	ErrorLog ${APACHE_LOG_DIR}/wordpress_error.log
+	CustomLog ${APACHE_LOG_DIR}/wordpress.log combined
+</VirtualHost>
+" >>/etc/apache2/sites-available/wordpress.conf
+
+# Finishing up setup
+
+a2ensite wordpress.conf >> /dev/null
+a2dissite 000-default.conf >> /dev/null
+a2enmod rewrite >> /dev/null
+
+systemctl restart apache2 >> /dev/null
+systemctl status apache2 >> /dev/null
+
+# Check the webserver
+echo "Installation finished. Visit the following ip in your web browser: "
+hostname --all-ip-addresses
