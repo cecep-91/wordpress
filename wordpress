@@ -165,7 +165,7 @@ wget -P /var/www/html http://wordpress.org/latest.tar.gz
 
 # Configuring Wordpress
 echo "Configuring Wordpress ..."
-tar -xvzf /var/www/html/latest.tar.gz -C /var/www/html/
+tar -xvzf /var/www/html/latest.tar.gz -C /var/www/html/ >> /dev/null
 mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
 
 echo "define( 'DB_NAME', '$db_name' );" >> /var/www/html/wordpress/wp-config.php
