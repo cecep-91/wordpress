@@ -160,7 +160,7 @@ then
 	rm /var/www/html/latest.tar.gz
 fi
 
-wget -P /var/www/html http://wordpress.org/latest.tar.gz
+wget -q --show-progress -P /var/www/html http://wordpress.org/latest.tar.gz
 
 # Getting ready Wordpress
 echo "Configuring Wordpress ..."
