@@ -204,7 +204,7 @@ dupl_vh=1
 alt_vh=1
 while [ dupl_vh -eq 1 ]
 do
-	wp_vh=${wp_vh}../wordpress_${alt_vh}.conf
+	wp_vh=/etc/apache2/sites-available/wordpress_${alt_vh}.conf
 	if [ -f $wp_vh]
 	then
 		alt_vh=$(($alt_vh + 1))
@@ -237,6 +237,6 @@ a2enmod rewrite >> /dev/null
 systemctl restart apache2 >> /dev/null
 systemctl status apache2 >> /dev/null
 
-# Check the webserver
+# Let User check the webserver
 echo "Installation finished. Visit the following ip in your web browser: "
 hostname --all-ip-addresses
