@@ -167,7 +167,7 @@ then
 	echo "Detected existing wordpress file, changing directory ..."
 	dupl_wp=1
 	alt_dir=1
-	while [ dupl_wp -eq 1 ]
+	while [ $dupl_wp -eq 1 ]
 	do
 		wp_dir=${wp_dir}../wordpress_${alt_dir}/
 		if [ -d wp_dir ]
@@ -202,7 +202,7 @@ chmod -R 775 ${wp_dir}
 wp_vh=/etc/apache2/sites-available/wordpress.conf
 dupl_vh=1
 alt_vh=1
-while [ dupl_vh -eq 1 ]
+while [ $dupl_vh -eq 1 ]
 do
 	wp_vh=/etc/apache2/sites-available/wordpress_${alt_vh}.conf
 	if [ -f $wp_vh]
