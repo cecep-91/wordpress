@@ -156,18 +156,17 @@ mysql --user="root" --password="$root_pass" --execute="FLUSH PRIVILEGES;" &>> /d
 wp_dir="/var/www/html/wordpress/"
 
 echo "Downloading Wordpress ..."
-if [ -f ${wp_dir}../latest.tar.gz ]
+if [ -f /var/www/html/latest.tar.gz ]
 then
 	echo "Removing old file ..."
-	rm ${wp_dir}../latest.tar.gz
+	rm /var/www/html/latest.tar.gz
 fi
 
 if [ -d /var/www/html/wordpress/ ]
 then
 	echo "Existing wordpress file found, making the backup of old wordpress file"
 	rm -R ${wp_dir}../old_wordpress/ &>> /dev/null
-	cp -R $wp_dir ${wp_dir}../old_wordpress/ 
-	rm -R $wp_dir
+	mv -R $wp_dir ${wp_dir}../old_wordpress/
 fi
 
 wget -q --show-progress -P /var/www/html http://wordpress.org/latest.tar.gz
