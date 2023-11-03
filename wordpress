@@ -4,7 +4,7 @@
 # Does user run it with root privilege
 whoami = "$(whoami)"
 
-if [ $whoami != "root" ]
+if [ "${whoami}" != "root" ]
 then
 	echo "You do not have root privileges, run it with sudo or root account"
 	exit 1
