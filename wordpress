@@ -1,6 +1,15 @@
 #!/bin/bash
 # Install Wordpress on Ubuntu server by Cecep-91
 
+# Does user run it with root privilege
+whoami = "$(whoami)"
+
+if [ $whoami != "root" ]
+then
+	echo "You do not have root privileges, run it with sudo or root account"
+	exit 1
+fi
+
 # Functions
 ressultlog=/var/log/wordpress.log
 errorlog=/var/log/wordpress_error.log
@@ -9,19 +18,13 @@ check_error() {
 if [ $? -ne 0 ]
 then
 	echo "An error occurred, check the $errorlog file"
-	sleep 0.5
+	mysql --user="root" --password="$root_pass" --execute="DROP DATABASE $db_name;" &>> /dev/null
+	mysql --user="root" --password="$root_pass" --execute="DROP USER '$username_db'@'localhost';" &>> /dev/null
+	exit 2
 else
-	r=0
+	break
 fi
 }
-
-# Does user run it with root privilege
-ls /root &> /dev/null
-if [ $? -ne 0 ]
-then
-	echo "You do not have root privileges, run it with sudo or root account"
-	exit 999
-fi
 
 # Let user know program is starting
 echo "Starting the program ..."
@@ -33,11 +36,10 @@ ping -c 3 8.8.8.8 &>> /dev/null
 if [ $? -ne 0 ]
 then
 	echo "No internet connection, try again later."
-	exit 1
+	exit 3
 fi
 
-r=1
-while [ $r -ne 0 ]
+while true
 do
 	apt install mariadb-server -y 1>$ressultlog 2>>$errorlog
 	check_error
@@ -45,63 +47,63 @@ done
 echo "200 OK"
 
 # Gaining mySQL root password
-access_sql=0
-while [ $access_sql != 1 ]
+while true
 do 
-	read -p "Enter your Maria-DB's root password (Leave it blank if you haven't configured it before):" root_pass
-	sleep 0.5
-
+	read -p "Enter your Maria-DB's root password (Leave it blank if you haven't configured it before): " root_pass
+	
 	mysql --user="root" --password="$root_pass" --execute="SHOW DATABASES;" &>> /dev/null
 	if [ $? -ne 0 ]
 	then
 		echo "Can't access Maria-DB server, check again your password."
-		sleep 0.5
-		exit 2
+		exit 4
 	else
 		echo "Maria-DB successfully accessed."
 		sleep 0.5
-		access_sql=1
+		break
 	fi
 done
 
 # Make database for Maria-DB user
-dupl_db=1
-while [ ${#db_name} -eq 0 ] && [ ${dupl_db}=1 ]
+while true
 do
 	read -p "Database name for Wordpress:" db_name
 
-	# Check duplicate database name
-	if [ ${#db_name} -ne 0 ]
+	# Check null input
+	if [ ${#db_name} -eq 0 ]
 	then
-	mysql --user="root" --password="$root_pass" --execute="USE $db_name;" &>> /dev/null
+		continue
 	else
-	mysql --user="root" --password="${root_pass}notapassword" --execute="USE ${db_name}notadatabase;" &>> /dev/null
+		mysql --user="root" --password="$root_pass" --execute="USE $db_name;" &>> /dev/null
 	fi
 
+	# Check duplicated database
 	if [ $? -ne 1 ]
 	then
 		echo "There is already database named '$db_name', enter something else."
-		db_name=""
 	else
-		dupl_db=0
+		break
 	fi
 done
 
 # Make username for Maria-DB user
-dupl_usr=1
-while [ ${#username_db} -eq 0 ] && [ ${dupl_usr}=1 ]
+while true
 do
 	read -p "Username Maria-DB for Wordpress:" username_db
 
-	# Check duplicate username
+	# Check null input
+	if [ ${#username_db} ]
+	then
+		continue
+	else
 	result=$(mysql --user="root" --password="$root_pass" --execute="SELECT User FROM mysql.user WHERE User='$username_db';" 2>&1)
+	fi
 
+	# Check duplicated user
 	if [[ "$result" == *"User"* ]]
 	then
 		echo "There is already username named '$username_db', enter something else."
-		username_db=""
 	else
-		dupl_usr=0
+		break
 	fi
 done
 
@@ -109,33 +111,28 @@ done
 while [ $pass1 != $pass2 ]
 do 
 	read -p "Maria-DB's password for user '$username_db':" -s pass1
+	read -p "\nConfirm your password:" -s pass2
 	echo ""
-	read -p "Confirm your password:" -s pass2
 
 	if [ $pass1 != $pass2 ]
 	then
 		echo "Your password is not matched. Try again ..."
 	fi
-	echo ""
 	sleep 0.5
 done
 
 # Update the Ubuntu server
-r=1
-while [ $r -ne 0 ]
+while true
 do
 	echo "Updating machine ..."
-
 	apt update 1>$ressultlog 2>>$errorlog
 	check_error
 done
 
 # Getting the required packages
-r=1
-while [ $r -ne 0 ]
+while true
 do
 	echo "Getting the requiered packages ..."
-
 	apt install apache2 mariadb-server php php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap libapache2-mod-php php-mysql wget unzip -y 1>$ressultlog 2>>$errorlog
 	check_error
 done
@@ -143,8 +140,8 @@ done
 echo "Configuring LAMP ..."
 
 # Setting Apace2
-systemctl start apache2 &>> /dev/null
-systemctl enable apache2 &>> /dev/null
+systemctl start apache2 >> /dev/null
+systemctl enable apache2 >> /dev/null
 
 # Configuring Maria-DB
 mysql --user="root" --password="$root_pass" --execute="CREATE DATABASE $db_name;" &>> /dev/null
@@ -164,7 +161,7 @@ fi
 
 if [ -d /var/www/html/wordpress/ ]
 then
-	echo "Existing wordpress file found, making the backup of old wordpress file"
+	echo "Existing wordpress file found, making the backup of old wordpress file ..."
 	rm -R ${wp_dir}../old_wordpress/ &>> /dev/null
 	mv -R $wp_dir ${wp_dir}../old_wordpress/
 fi
