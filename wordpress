@@ -2,9 +2,9 @@
 # Install Wordpress on Ubuntu server by Cecep-91
 
 # Does user run it with root privilege
-whoami = "$(whoami)"
+who = "$(whoami)"
 
-if [ "${whoami}" != "root" ]
+if [ "${who}" != "root" ]
 then
 	echo "You do not have root privileges, run it with sudo or root account"
 	exit 1
