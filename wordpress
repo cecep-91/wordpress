@@ -21,8 +21,6 @@ then
 	mysql --user="root" --password="$root_pass" --execute="DROP DATABASE $db_name;" &>> /dev/null
 	mysql --user="root" --password="$root_pass" --execute="DROP USER '$username_db'@'localhost';" &>> /dev/null
 	exit 2
-else
-	break
 fi
 }
 
@@ -43,6 +41,7 @@ while true
 do
 	apt install mariadb-server -y 1>$ressultlog 2>>$errorlog
 	check_error
+	break
 done
 echo "200 OK"
 
@@ -127,6 +126,7 @@ do
 	echo "Updating machine ..."
 	apt update 1>$ressultlog 2>>$errorlog
 	check_error
+	break
 done
 
 # Getting the required packages
@@ -135,6 +135,7 @@ do
 	echo "Getting the requiered packages ..."
 	apt install apache2 mariadb-server php php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap libapache2-mod-php php-mysql wget unzip -y 1>$ressultlog 2>>$errorlog
 	check_error
+	break
 done
 
 echo "Configuring LAMP ..."
